@@ -17,6 +17,12 @@
                  "description": "Name of the storage account for VM OS Disks"
             } 
         },
+        "dnsName": {
+            "type": "string",
+                "metadata": {
+                      "description": "Unique DNS Name for the Public IP used to access the Virtual Machine."
+                }
+        },
         "vmSize": {
             "type": "string",
             "defaultValue": "Standard_A1",
@@ -55,6 +61,10 @@
             "metadata": { 
                  "description": "Discovery url for Fleet cluster"
             } 
+        },
+        "APPport": {
+            "type": "int",
+            "defaultValue": 80
         }
     },
     "variables": {
@@ -63,15 +73,24 @@
         "subnet1Name": "Subnet-1",
         "subnet1Prefix": "10.0.0.0/24",
         "publicIPAddressType": "Dynamic",
+        "publicIPAddressName": "[concat('publicIPfor', parameters('dnsName'))]",
+        "publicIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]",
         "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
         "subnet1Ref": "[concat(variables('vnetID'),'/subnets/',variables('subnet1Name'))]",
         "vmNamePrefix": "coreos",
-        "imageSku": "Stable",
+        "loadBalancerName": "[concat('LBfor',parameters('dnsName'))]",
+        "nicName" : "networkInterface1",
+        "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('loadBalancerName'))]",
+        "nicId": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]",
+        "frontEndIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/loadBalancerFrontEnd')]",
+        "backEndIPConfigID": "[concat(variables('nicId'),'/ipConfigurations/ipconfig1')]",
+        "lbPoolID": "[concat(variables('lbID'),'/backendAddressPools/loadBalancerBackEnd')]",
+        "lbProbeID": "[concat(variables('lbID'),'/probes/tcpProbe')]",
+        "imageSku": "Alpha",
         "vmStorageAccountContainerName": "vhds",
         "storageAccountType": "Standard_LRS",
         "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
         "unitFile": "[concat('#cloud-config\n\ncoreos:\n  etcd:\n    discovery: ', parameters('discoveryUrl'),'\n    addr: $private_ipv4:4001\n    peer-addr: $private_ipv4:7001\n  units:\n    - name: etcd.service\n      command: start\n    - name: fleet.service\n      command: start')]"
-
     },
     "resources": [
         {
@@ -85,15 +104,14 @@
         },
         {
             "type": "Microsoft.Network/publicIPAddresses",
-            "name": "[concat('publicIP', copyindex())]",
-            "copy": {
-                "name": "ipLoop",
-                "count": "[parameters('numberOfNodes')]"
-            },
+            "name": "[variables('publicIPAddressName')]",
             "location": "[parameters('location')]",
             "apiVersion": "2015-05-01-preview",
             "properties": {
-                "publicIPAllocationMethod": "[variables('publicIPAddressType')]"
+                "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
+                "dnsSettings": {
+                    "domainNameLabel": "[parameters('dnsName')]"
+                }
             }
         },
         {
@@ -126,8 +144,8 @@
             },
             "location": "[parameters('location')]",
             "dependsOn": [
-                "[concat('Microsoft.Network/publicIPAddresses/', 'publicIP', copyindex())]",
-                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/loadBalancers/', variables('loadBalancerName'))]"
             ],
             "apiVersion": "2015-05-01-preview",
             "properties": {
@@ -136,12 +154,19 @@
                         "name": "ipconfig1",
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
-                            "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIpAddresses', concat('publicIP', copyindex()))]"
-                            },
                             "subnet": {
                                 "id": "[variables('subnet1Ref')]"
-                            }
+                            },
+                            "loadBalancerBackendAddressPools": [
+                                {
+                                    "id": "[concat('Microsoft.Network/loadBalancers/',variables('loadBalancerName'),'/backendAddressPools/loadBalancerBackEnd')]"
+                             }
+                            ],
+                            "loadBalancerInboundNatRules": [
+                            {
+                                    "id": "[concat('Microsoft.Network/loadBalancers/',variables('loadBalancerName'),'/inboundNatRule/SSH-Node',copyindex())]"                           
+                             }
+                           ]
                         }
                     }
                 ]
@@ -204,6 +229,98 @@
                     ]
                 }
             }
+        },
+        {
+        "apiVersion": "2015-05-01-preview",
+        "name": "[variables('loadBalancerName')]",
+        "type": "Microsoft.Network/loadBalancers",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+            "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]"
+        ],
+        "properties": {
+            "frontendIPConfigurations": [{
+                "name": "loadBalancerFrontEnd",
+                "properties": {
+                    "publicIPAddress": {
+                        "id": "[variables('publicIPAddressID')]"
+                    }
+                }
+            }],
+            "backendAddressPools": [{
+                    "name": "loadBalancerBackEnd"
+                }
+
+            ],
+            "inboundNatRules": [{
+                "name": "SSH-Node1",
+                "properties": {
+                    "frontendIPConfiguration": {
+                        "id": "[variables('frontEndIPConfigID')]"
+                    },
+                    "protocol": "tcp",
+                    "frontendPort": 2201,
+                    "backendPort": 22,
+                    "enableFloatingIP": false
+                }
+            },
+            {
+                "name": "SSH-Node2",
+                "properties": {
+                    "frontendIPConfiguration": {
+                        "id": "[variables('frontEndIPConfigID')]"
+                    },
+                    "protocol": "tcp",
+                    "frontendPort": 2202,
+                    "backendPort": 22,
+                    "enableFloatingIP": false
+                }
+            },
+            {
+                "name": "SSH-Node3",
+                "properties": {
+                    "frontendIPConfiguration": {
+                        "id": "[variables('frontEndIPConfigID')]"
+                    },
+                    "protocol": "tcp",
+                    "frontendPort": 2203,
+                    "backendPort": 22,
+                    "enableFloatingIP": false
+                }
+            }],
+               "loadBalancingRules": [
+                    {
+                        "name": "LBRule",
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[variables('frontEndIPConfigID')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[variables('lbPoolID')]"
+                            },
+                            "protocol": "tcp",
+                            "frontendPort": 80,
+                            "backendPort": 80,
+                            "enableFloatingIP": false,
+                            "idleTimeoutInMinutes": 5,
+                            "probe": {
+                                "id": "[variables('lbProbeID')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "tcpProbe",
+                        "properties": {
+                            "protocol": "tcp",
+                            "port": 80,
+                            "intervalInSeconds": "5",
+                            "numberOfProbes": "2"
+                        }
+                    }
+                ]
         }
-    ]
+      }
+  ]
 }
