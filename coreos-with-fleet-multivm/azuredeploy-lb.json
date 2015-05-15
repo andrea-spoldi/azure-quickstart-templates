@@ -1,0 +1,253 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+       "location": {
+            "type": "string",
+            "defaultValue": "West US",
+            "allowedValues": ["East US", "West US", "West Europe", "East Asia", "South East Asia"],
+            "metadata": { 
+                 "description": "Location of resources" 
+            } 
+        },
+        "newStorageAccountName": {
+            "type": "string",
+            "defaultValue": "storageaccount",
+            "metadata": { 
+                 "description": "Name of the storage account for VM OS Disks"
+            } 
+        },
+        "dnsNameforLBIP": {
+            "type": "string",
+            "defaultValue": "uniqueDnsNameforLBIP"
+        },
+        "vmNamePrefix": {
+            "type": "string",
+            "defaultValue": "myVM"
+        },
+        "lbName": {
+            "type": "string",
+            "defaultValue": "myLB"
+        },
+        "nicNamePrefix": {
+            "type": "string",
+            "defaultValue": "nic"
+        },
+        "publicIPAddressName": {
+            "type": "string",
+            "defaultValue": "myPublicIP"
+        },
+        "vnetName": {
+            "type": "string",
+            "defaultValue": "myVNET"
+        },
+        "vmSize": {
+            "type": "string",
+            "defaultValue": "Standard_A1",
+            "allowedValues": [
+                "Standard_A0",
+                "Standard_A1",
+                "Standard_A2",
+                "Standard_A3",
+                "Standard_A4"
+            ]
+        },
+         "numberOfNodes": {
+            "type": "int",
+            "defaultValue": 3,
+            "metadata": { 
+                 "description": "Number of compute nodes to create"
+            } 
+        },
+        "adminUserName": {
+            "type": "string",
+            "defaultValue": "core",
+            "metadata": { 
+                 "description": "Username to login to the VMs"
+            } 
+        },
+        "sshKeyData": {
+            "type": "string",
+            "metadata": { 
+                 "description": "Public key for SSH authentication"
+            } 
+        },
+        "discoveryUrl": {
+            "type": "string",
+            "metadata": { 
+                 "description": "Discovery url for Fleet cluster"
+            } 
+        },
+          "dnsName": {
+            "type": "string",
+                "metadata": {
+                      "description": "Unique DNS Name for the Public IP used to access the Virtual Machine."
+                }
+        },
+          "APPport": {
+            "type": "int",
+            "defaultValue": 80
+        }
+    },
+    "variables": {
+        "storageAccountType": "Standard_LRS",
+        "vmStorageAccountContainerName": "vhds",
+        "availabilitySetName": "myAvSet",
+        "addressPrefix": "10.0.0.0/16",
+        "subnetName": "Subnet-1",
+        "subnetPrefix": "10.0.0.0/24",
+        "publicIPAddressType": "Dynamic",
+        "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',parameters('vnetName'))]",
+        "subnetRef": "[concat(variables('vnetID'),'/subnets/',variables ('subnetName'))]",
+        "publicIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses',parameters('publicIPAddressName'))]",
+        "lbID": "[resourceId('Microsoft.Network/loadBalancers',parameters('lbName'))]",
+        "frontEndIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/loadBalancerFrontend')]",
+        "imageSku": "Alpha",
+        "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
+        "unitFile": "[concat('#cloud-config\n\ncoreos:\n  etcd:\n    discovery: ', parameters('discoveryUrl'),'\n    addr: $private_ipv4:4001\n    peer-addr: $private_ipv4:7001\n  units:\n    - name: etcd.service\n      command: start\n    - name: fleet.service\n      command: start')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[parameters('storageAccountName')]",
+            "apiVersion": "2015-05-01-preview",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "accountType": "[variables('storageAccountType')]"
+            }
+        },
+        {
+            "type": "Microsoft.Compute/availabilitySets",
+            "name": "[variables('availabilitySetName')]",
+            "apiVersion": "2015-05-01-preview",
+            "location": "[resourceGroup().location]",
+            "properties": { }
+        },
+        {
+            "apiVersion": "2015-05-01-preview",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[parameters('publicIPAddressName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
+                "dnsSettings": {
+                    "domainNameLabel": "[parameters('dnsNameforLBIP')]"
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-05-01-preview",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[parameters('vnetName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('addressPrefix')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('subnetName')]",
+                        "properties": {
+                            "addressPrefix": "[variables('subnetPrefix')]"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-05-01-preview",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat(parameters('nicNamePrefix'), copyindex())]",
+            "location": "[resourceGroup().location]",
+            "copy": {
+                "name": "nicLoop",
+                "count": "[parameters('numberOfNodes')]"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Network/virtualNetworks/', parameters('vnetName'))]",
+                "[concat('Microsoft.Network/loadBalancers/', parameters('lbName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                             "loadBalancerBackendAddressPools": [
+                            {
+                                "id": "[concat(variables('lbID'), '/backendAddressPools/LoadBalancerBackend')]"
+                            }
+                        ],
+                        "loadBalancerInboundNatRules": [
+                            {
+                                "id": "[concat(variables('lbID'),'/inboundNatRules/SSH-NODE', copyindex())]"
+                            }
+                        ]
+                        }
+
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "2015-05-01-preview",
+            "name": "[parameters('lbName')]",
+            "type": "Microsoft.Network/loadBalancers",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/', parameters('publicIPAddressName'))]"
+            ],
+            "properties": {
+                "frontendIPConfigurations": [
+                    {
+                        "name": "LoadBalancerFrontend",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[variables('publicIPAddressID')]"
+                            }
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "LoadBalancerBackend"
+
+                    }
+                ],
+                "inboundNatRules": [
+                    {
+                        "name": "SSH-NODE1",
+                        "properties": {
+                            "frontendIPConfiguration":
+                                {
+                                    "id": "[variables('frontEndIPConfigID')]"
+                                },
+                            "protocol": "tcp",
+                            "frontendPort": 2201,
+                            "backendPort": 22,
+                            "enableFloatingIP": false
+                        }
+                    },
+                    {
+                        "name": "SSH-NODE2",
+                        "properties": {
+                            "frontendIPConfiguration":
+                                {
+                                    "id": "[variables('frontEndIPConfigID')]"
+                                },
+                            "protocol": "tcp",
+                            "frontendPort": 2202,
+                            "backendPort": 22,
+                            "enableFloatingIP": false
+                        }
+                    }
+                ]
+            }
+        }                
+    ]
+}

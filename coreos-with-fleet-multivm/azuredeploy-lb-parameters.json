@@ -1,0 +1,32 @@
+﻿{
+    "location": {
+        "value": "West Europe"
+    },
+    "newStorageAccountName" : {
+        "value": "docebostorageforcluster"
+    },
+    "vmSize": {
+        "value": "Standard_A1"
+    },
+    "numberOfNodes": {
+        "value": 3
+    },
+    "adminUsername": {
+        "value": "staff.docebo"
+    },
+    "sshKeyData" : {
+        "value" : "MIIDtTCCAp2gAwIBAgIJAJPaBdvuVfxnMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNVBAYTAklUMRMwEQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwHhcNMTUwNTE0MTMxNjQyWhcNMTYwNTEzMTMxNjQyWjBFMQswCQYDVQQGEwJJVDETMBEGA1UECBMKU29tZS1TdGF0ZTEhMB8GA1UEChMYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7075Oakmfnnx+2PqcKLGPlMu+7tUZpJmhgNeeBb23LF75PKpfqqX/q7JIpS4iwVWFOQozS0TUz+CSgXYfPaHWnT9g0zBt9nqc3pRoFQvhttPXk1mc1ghqG0mZ71na0pVXMKkgbowKYmQ5OkHPjs49O9Z2SyY6QFdRnOsmcaoje19xIbMG1VElo/LYt9nzpHxxZDTtlINIyy500QPkVFsEYJSJCi3I1RCue8YGh2jlLdksGRerExDJqd6Wa3Vm6RJEVBJoVUB0aX1oovHWD8EZUntunLlfM2yFOHjD8+6UFOONi4Co+bS1Kxij3loXAkkOtVj44mQRjN+CE1LJp/buwIDAQABo4GnMIGkMB0GA1UdDgQWBBSoohZxSGakWJrYlTM1HdQzAZ19nTB1BgNVHSMEbjBsgBSoohZxSGakWJrYlTM1HdQzAZ19naFJpEcwRTELMAkGA1UEBhMCSVQxEzARBgNVBAgTClNvbWUtU3RhdGUxITAfBgNVBAoTGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZIIJAJPaBdvuVfxnMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADggEBABxw4AQJO7brjL/GKFxdY+42GjgLIuqVZw0VeGdmFro4og28tiLbdeBBYB1kbL9m+VpbEtT0wn0nLxOdIbbv3sCJuWz0kqQff+Wnvx81VnByhnYti2Goz9X+Prsed+V0gC5XoHpYdbhcTml/0HQ44jdQJKXc3ucfsYGWDnu4riRao5lLf4Q/Xms84SUdk5AcpZPK2z04hBEzzbQSfFkoGbSw8bTtOwmAM58051sex5Tk12qNbTYaKSeHI4yYHi37z2OgKjbk0cevhjmm3g3qj5wQw7TKpP2ymVyqnFiYNRnrnFP4dXFy3RasfhJOhpKRoU85piEdIsYkSu8y2F1CfLE="
+    },
+    "discoveryUrl" : {
+        "value" : "https://discovery.etcd.io/2fe402ab900bddd5cbe6f961b69c32be"
+    },
+    "dnsName": {
+        "value": "doceboclu"
+    },
+    "APPport": {
+        "value": 80
+    },
+    "dnsNameforLBIP": {
+      "value": "doceboclu"
+  }
+}
