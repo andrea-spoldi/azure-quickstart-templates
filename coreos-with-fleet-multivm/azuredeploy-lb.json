@@ -4,7 +4,7 @@
     "parameters": {
        "location": {
             "type": "string",
-            "defaultValue": "West US",
+            "defaultValue": "West Europe",
             "allowedValues": ["East US", "West US", "West Europe", "East Asia", "South East Asia"],
             "metadata": { 
                  "description": "Location of resources" 
@@ -96,6 +96,7 @@
         "addressPrefix": "10.0.0.0/16",
         "subnetName": "Subnet-1",
         "subnetPrefix": "10.0.0.0/24",
+        "vmNamePrefix": "coreos",
         "publicIPAddressType": "Dynamic",
         "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',parameters('vnetName'))]",
         "subnetRef": "[concat(variables('vnetID'),'/subnets/',variables ('subnetName'))]",
@@ -109,9 +110,9 @@
     "resources": [
         {
             "type": "Microsoft.Storage/storageAccounts",
-            "name": "[parameters('storageAccountName')]",
+            "name": "[parameters('newStorageAccountName')]",
             "apiVersion": "2015-05-01-preview",
-            "location": "[resourceGroup().location]",
+            "location": "[parameters('location')]",
             "properties": {
                 "accountType": "[variables('storageAccountType')]"
             }
@@ -120,14 +121,14 @@
             "type": "Microsoft.Compute/availabilitySets",
             "name": "[variables('availabilitySetName')]",
             "apiVersion": "2015-05-01-preview",
-            "location": "[resourceGroup().location]",
+            "location": "[parameters('location')]",
             "properties": { }
         },
         {
             "apiVersion": "2015-05-01-preview",
             "type": "Microsoft.Network/publicIPAddresses",
             "name": "[parameters('publicIPAddressName')]",
-            "location": "[resourceGroup().location]",
+            "location": "[parameters('location')]",
             "properties": {
                 "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
                 "dnsSettings": {
@@ -139,7 +140,7 @@
             "apiVersion": "2015-05-01-preview",
             "type": "Microsoft.Network/virtualNetworks",
             "name": "[parameters('vnetName')]",
-            "location": "[resourceGroup().location]",
+            "location": "[parameters('location')]",
             "properties": {
                 "addressSpace": {
                     "addressPrefixes": [
@@ -160,7 +161,7 @@
             "apiVersion": "2015-05-01-preview",
             "type": "Microsoft.Network/networkInterfaces",
             "name": "[concat(parameters('nicNamePrefix'), copyindex())]",
-            "location": "[resourceGroup().location]",
+            "location": "[parameters('location')]",
             "copy": {
                 "name": "nicLoop",
                 "count": "[parameters('numberOfNodes')]"
@@ -195,10 +196,68 @@
             }
         },
         {
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[concat(variables('vmNamePrefix'), copyindex())]",
+            "copy": {
+                "name": "vmLoop",
+                "count": "[parameters('numberOfNodes')]"
+            },
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', parameters('newStorageAccountName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', 'nic', copyindex())]"
+            ],
+            "apiVersion": "2015-05-01-preview",
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                    "computername": "[concat(variables('vmNamePrefix'), copyindex())]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "customData": "[base64(variables('unitFile'))]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": "true",
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "[variables('sshKeyPath')]",
+                                    "keyData": "[parameters('sshKeyData')]"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "CoreOS",
+                        "offer": "CoreOS",
+                        "sku": "[variables('imageSku')]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "[concat(variables('vmNamePrefix'), copyindex())]",
+                        "vhd": {
+                            "uri": "[concat('http://',parameters('newStorageAccountName'),'.blob.core.windows.net/vhds/',variables('vmNamePrefix'), copyindex(),'.vhd')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces',concat('nic',copyindex()))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "apiVersion": "2015-05-01-preview",
             "name": "[parameters('lbName')]",
             "type": "Microsoft.Network/loadBalancers",
-            "location": "[resourceGroup().location]",
+            "location": "[parameters('location')]",
             "dependsOn": [
                 "[concat('Microsoft.Network/publicIPAddresses/', parameters('publicIPAddressName'))]"
             ],

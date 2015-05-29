@@ -159,12 +159,12 @@
                             },
                             "loadBalancerBackendAddressPools": [
                                 {
-                                    "id": "[concat('Microsoft.Network/loadBalancers/',variables('loadBalancerName'),'/backendAddressPools/loadBalancerBackEnd')]"
+                                    "id": "[concat(variables('lbID'),'/backendAddressPools/loadBalancerBackEnd')]"
                              }
                             ],
                             "loadBalancerInboundNatRules": [
                             {
-                                    "id": "[concat('Microsoft.Network/loadBalancers/',variables('loadBalancerName'),'/inboundNatRule/SSH-Node',copyindex())]"                           
+                                    "id": "[concat(variables('lbID'),'/inboundNatRule/SSH-Node',copyindex())]"                           
                              }
                            ]
                         }
