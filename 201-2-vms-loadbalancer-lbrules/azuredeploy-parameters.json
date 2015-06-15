@@ -1,15 +1,15 @@
 ﻿{
   "storageAccountName": {
-      "value" : ""
+      "value" : "docebotest"
   },
   "adminUsername": {
-      "value" : ""
+      "value" : "doceboadmin"
   },
   "adminPassword": {
-      "value": ""
+      "value": "password"
   },
   "dnsNameforLBIP": {
-      "value": ""
+      "value": "docbeotestlb"
   }
 
 }

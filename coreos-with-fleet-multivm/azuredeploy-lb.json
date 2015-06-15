@@ -304,6 +304,19 @@
                             "backendPort": 22,
                             "enableFloatingIP": false
                         }
+                    },
+                     {
+                        "name": "SSH-NODE3",
+                        "properties": {
+                            "frontendIPConfiguration":
+                                {
+                                    "id": "[variables('frontEndIPConfigID')]"
+                                },
+                            "protocol": "tcp",
+                            "frontendPort": 2203,
+                            "backendPort": 22,
+                            "enableFloatingIP": false
+                        }
                     }
                 ]
             }
